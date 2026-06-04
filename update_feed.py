@@ -4,90 +4,103 @@ from feedgen.feed import FeedGenerator
 from datetime import datetime, timezone
 import xml.etree.ElementTree as ET
 
-# 1. Ordner erstellen
 os.makedirs('public', exist_ok=True)
 
-# 2. Offizieller CERN-Feed
-CERN_FEED_URL = "https://home.cern/api/news/feed.rss"
-
-# 3. Übersetzungsfunktion (LibreTranslate)
-def translate_to_german(text):
+# Übersetzung via LibreTranslate
+def translate(text):
     try:
-        resp = requests.post(
+        r = requests.post(
             "https://libretranslate.de/translate",
-            data={
-                "q": text,
-                "source": "en",
-                "target": "de",
-                "format": "text"
-            },
+            data={"q": text, "source": "en", "target": "de"},
             timeout=10
         )
-        if resp.status_code == 200:
-            return resp.json().get("translatedText", text)
+        if r.status_code == 200:
+            return r.json().get("translatedText", text)
     except:
         pass
-    return text  # Fallback: Originaltext
+    return text
 
-print("Lade offiziellen CERN-Feed...")
+# Quellen
+RSS_FEEDS = [
+    "https://home.cern/api/press/feed.rss",
+    "https://home.cern/api/events/feed.rss",
+    "https://openlab.cern/news/feed"
+]
 
-try:
-    response = requests.get(CERN_FEED_URL, timeout=15)
-    response.raise_for_status()
-    xml_data = response.text
-except Exception as e:
-    print(f"Fehler beim Abrufen des CERN-Feeds: {e}")
-    xml_data = None
+JSON_FEEDS = [
+    "https://home.cern/api/news",
+    "https://atlas.cern/api/news",
+    "https://cms.cern/api/news",
+    "https://alice.cern/api/news",
+    "https://lhcb.cern/api/news"
+]
 
-# 4. Eigenen Feed initialisieren
-fg = FeedGenerator()
-fg.id('https://home.cern/news')
-fg.title('CERN News – Deutsch übersetzt')
-fg.link(href='https://home.cern/news', rel='alternate')
-fg.description('Automatisch übersetzter Feed basierend auf dem offiziellen CERN-Newsfeed')
-fg.language('de')
+entries = []
 
-articles_found = 0
-
-if xml_data:
+# RSS verarbeiten
+def load_rss(url):
     try:
-        root = ET.fromstring(xml_data)
-        channel = root.find("channel")
-        items = channel.findall("item")
-
-        for item in items[:15]:
+        xml = requests.get(url, timeout=15).text
+        root = ET.fromstring(xml)
+        for item in root.find("channel").findall("item"):
             title = item.findtext("title")
             link = item.findtext("link")
-            description = item.findtext("description")
-            pub_date = item.findtext("pubDate")
+            desc = item.findtext("description") or ""
+            date = item.findtext("pubDate") or datetime.now(timezone.utc).isoformat()
 
-            # Übersetzen
-            title_de = translate_to_german(title)
-            description_de = translate_to_german(description)
+            entries.append({
+                "title": translate(title),
+                "link": link,
+                "desc": translate(desc),
+                "date": date
+            })
+    except:
+        pass
 
-            fe = fg.add_entry()
-            fe.id(link)
-            fe.title(title_de)
-            fe.link(href=link)
-            fe.description(description_de)
-            fe.pubDate(pub_date)
+# JSON verarbeiten
+def load_json(url):
+    try:
+        data = requests.get(url, timeout=15).json()
+        for item in data.get("items", []):
+            title = item.get("title", "")
+            link = "https://home.cern" + item.get("url", "")
+            desc = item.get("summary", "")
+            date = item.get("date", datetime.now(timezone.utc).isoformat())
 
-            articles_found += 1
+            entries.append({
+                "title": translate(title),
+                "link": link,
+                "desc": translate(desc),
+                "date": date
+            })
+    except:
+        pass
 
-        print(f"{articles_found} Artikel erfolgreich übernommen und übersetzt.")
+# Alle Feeds laden
+for f in RSS_FEEDS:
+    load_rss(f)
 
-    except Exception as e:
-        print(f"Fehler beim Verarbeiten des XML: {e}")
+for f in JSON_FEEDS:
+    load_json(f)
 
-# 5. Fallback
-if articles_found == 0:
+# Sortieren nach Datum
+entries.sort(key=lambda x: x["date"], reverse=True)
+
+# Feed erzeugen
+fg = FeedGenerator()
+fg.id("https://home.cern")
+fg.title("CERN Superfeed – Deutsch")
+fg.link(href="https://home.cern", rel="alternate")
+fg.description("Kombinierter CERN‑Superfeed aus News, Press Releases, Events und Experimenten")
+fg.language("de")
+
+for e in entries[:40]:
     fe = fg.add_entry()
-    fe.id("https://home.cern/news/fallback")
-    fe.title("CERN Feed wartet auf Updates")
-    fe.link(href="https://home.cern/news")
-    fe.description("Der Feed ist aktiv, aber der CERN-Feed lieferte keine Artikel.")
-    fe.pubDate(datetime.now(timezone.utc))
+    fe.id(e["link"])
+    fe.title(e["title"])
+    fe.link(href=e["link"])
+    fe.description(e["desc"])
+    fe.pubDate(e["date"])
 
-# 6. RSS-Datei schreiben
-fg.rss_file('public/cern_feed.xml', pretty=True)
-print("Feed-Datei erfolgreich aktualisiert.")
+fg.rss_file("public/cern_feed.xml", pretty=True)
+print("CERN Superfeed erfolgreich aktualisiert.")
