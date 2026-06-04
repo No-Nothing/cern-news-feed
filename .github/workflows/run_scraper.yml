@@ -24,7 +24,7 @@ jobs:
     - name: Install Dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install requests feedgen lxml
+        pip install requests feedgen lxml beautifulsoup4
 
     - name: Run Scraper
       run: python update_feed.py
