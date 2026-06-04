@@ -34,7 +34,28 @@ def load_rss(url):
     try:
         xml = requests.get(url, timeout=15).text
         root = ET.fromstring(xml)
-        for item in root.find("channel").findall("item"):
+
+        # Namespace-Handling
+        ns = {}
+        for k, v in root.attrib.items():
+            if "xmlns" in k:
+                ns[k.replace("xmlns:", "")] = v
+
+        channel = root.find("channel")
+        if channel is None:
+            # Fallback: Suche mit Namespace
+            channel = root.find("rss:channel", ns)
+
+        if channel is None:
+            print(f"Kein <channel> in {url}")
+            return
+
+        # Items finden (mit und ohne Namespace)
+        items = channel.findall("item")
+        if not items:
+            items = channel.findall("rss:item", ns)
+
+        for item in items:
             title = item.findtext("title") or ""
             link = item.findtext("link") or ""
             desc = item.findtext("description") or ""
@@ -46,6 +67,7 @@ def load_rss(url):
                 "desc": translate(desc),
                 "date": date
             })
+
     except Exception as e:
         print(f"Fehler bei {url}: {e}")
 
