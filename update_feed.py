@@ -28,7 +28,7 @@ try:
     html = response.text
 
     # Verbessertes Suchmuster: Findet alle Links, die mit /news/ oder /opinion/ beginnen
-    matches = re.findall(r'href=\"((?:/news/|/opinion/)[^\"]+)\"[^>]*>(.*?)</a>", html)
+    matches = re.findall(r'href=\"((?:/news/|/opinion/)[^\"]+)\"[^>]*>(.*?)</a>', html)
     
     seen_urls = set()
     for path, title in matches:
