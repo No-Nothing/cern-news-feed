@@ -28,7 +28,7 @@ try:
     html = response.text
 
     # Verbessertes Suchmuster: Findet alle Links, die mit /news/ oder /opinion/ beginnen
-    matches = re.findall(r'href="((?:/news/|/opinion/)[^"]+)"[^>]*>(.*?)</a>', html)
+    matches = re.findall(r'href=\"((?:/news/|/opinion/)[^\"]+)\"[^>]*>(.*?)</a>", html)
     
     seen_urls = set()
     for path, title in matches:
@@ -66,6 +66,6 @@ if articles_found == 0:
     fe.summary("Der Feed ist aktiv, sucht aber noch nach dem richtigen Artikelformat.")
     fe.updated(datetime.now(timezone.utc))
 
-# 4. Datei schreiben
-fg.atom_file('public/cern_feed.xml', pretty=True)
+# 4. Datei schreiben (JETZT ALS RSS)
+fg.rss_file('public/cern_feed.xml', pretty=True)
 print("Feed-Datei erfolgreich aktualisiert.")
