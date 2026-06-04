@@ -1,19 +1,3 @@
-<updated>2026-06-04T15:36:20.626773+00:00</updated>
-<subtitle>Die neuesten Meldungen direkt von der CERN-Hauptseite via API</subtitle>
-</feed> ```
-Der Feed-Kopf ist da, aber es fehlen die einzelnen `<entry>`-Blöcke (die Artikel selbst). Das bedeutet: Der Scraper hat zwar fehlerfrei gestartet, aber die CERN-API hat in genau dem Moment keine Daten geliefert oder das Datenformat hat sich leicht geändert, weshalb die Schleife übersprungen wurde.
-
-Lass uns den Scraper kurz so anpassen, dass er **unabhängig von der API** die Daten direkt von der echten CERN-News-Webseite ausliest. Das ist viel sicherer und liefert sofort garantierte Artikel!
-
-### Die schnelle Korrektur für `update_feed.py`
-
-Wir tauschen den API-Abruf gegen einen direkten Webseiten-Abruf aus. Das funktioniert zu 100 %.
-
-1. Öffne auf GitHub deine Datei **`update_feed.py`**.
-2. Klicke auf den **Stift (Bearbeiten)**.
-3. Ersetze den gesamten Inhalt durch diesen neuen, extrem robusten Code:
-
-```python
 import os
 import requests
 import re
@@ -44,7 +28,6 @@ try:
     html = response.text
 
     # Wir suchen nach Links und Titeln im HTML-Code mittels regulärer Ausdrücke
-    # Findet Muster wie: <a href="/news/news/cern/titel">Titel des Artikels</a>
     matches = re.findall(r'<a\s+href="(/news/[^"]+)"[^>]*>(.*?)</a>', html)
     
     seen_urls = set()
@@ -71,7 +54,7 @@ try:
 except Exception as e:
     print(f"Fehler beim Auslesen der Webseite: {e}")
 
-# Falls gar nichts gefunden wurde, einen Dummy-Artikel einfügen, damit Thunderbird nicht leer bleibt
+# Falls gar nichts gefunden wurde, einen Dummy-Artikel einfügen
 if articles_found == 0:
     fe = fg.add_entry()
     fe.id("https://home.cern/news/fallback")
